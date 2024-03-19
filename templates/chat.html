@@ -6,26 +6,27 @@
     <title>Chat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        /* Your CSS styles */
         .chat-container {
             background-color: #fff;
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 600px; /* Adjust the width as needed */
-            margin: auto; /* Center the chat box horizontally */
-            margin-top: 100px; /* Adjust the top margin to center vertically */
+            width: 600px;
+            margin: auto;
+            margin-top: 100px;
             display: flex;
             flex-direction: column;
         }
 
         h2 {
             margin-top: 0;
-            text-align: center; /* Center the title */
+            text-align: center;
         }
 
         #chat-messages {
-            flex: 1; /* Allow the chat messages to expand to fill remaining space */
-            overflow-y: auto; /* Enable vertical scrolling */
+            flex: 1;
+            overflow-y: auto;
             border: 1px solid #ccc;
             padding: 10px;
             border-radius: 4px;
@@ -46,7 +47,7 @@
         }
 
         #message-input {
-            flex-grow: 1; /* Take remaining space */
+            flex-grow: 1;
             padding: 10px;
             margin-right: 5px;
             border: 1px solid #ccc;
@@ -56,8 +57,8 @@
         }
 
         #send-button {
-            width: 80px; /* Adjust the width as needed */
-            padding: 12px; /* Increase padding to make the button bigger */
+            width: 80px;
+            padding: 12px;
             background-color: #4CAF50;
             color: white;
             border: none;
@@ -77,20 +78,76 @@
         <div id="room-selection">
             <label for="room-select">Select a room:</label>
             <select id="room-select">
-                <option value="default" selected>Default Room</option>
-                <!-- Add more rooms here if needed -->
+                {% for room in rooms %}
+                    <option value="{{ room }}" {% if room == room %} selected {% endif %}>{{ room }}</option>
+                {% endfor %}
             </select>
         </div>
-        <div id="chat-messages"></div>
+        <div id="chat-messages">
+            {% for message in messages %}
+                <div><strong>{{ message.username }}:</strong> {{ message.message }}</div>
+            {% endfor %}
+        </div>
         <div id="message-box">
             <input type="text" id="message-input" placeholder="Type your message...">
             <button id="send-button">Send</button>
         </div>
+        <div>
+            <label for="language-select">Translate to:</label>
+            <select id="language-select">
+                <option value="original">Original</option>
+                <option value="en">English</option>
+                <!-- Add more language options -->
+            </select>
+        </div>
     </div>
 
     <script>
-        // Pass username from Flask template to JavaScript
-        const username = '{{ username }}';
+        document.addEventListener('DOMContentLoaded', () => {
+            const socket = io();
+            const username = '{{ username }}';
+
+            function joinRoom(room) {
+                socket.emit('join', { 'username': username, 'room': room });
+            }
+
+            joinRoom('{{ room }}');
+
+            const roomSelect = document.getElementById('room-select');
+            const chatMessages = document.getElementById('chat-messages');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const languageSelect = document.getElementById('language-select');
+
+            sendButton.addEventListener('click', () => {
+                const message = messageInput.value.trim();
+                const selectedLanguage = languageSelect.value;
+                if (message !== '') {
+                    socket.emit('message', { 'username': username, 'message': message, 'room': roomSelect.value, 'target_language': selectedLanguage });
+                    messageInput.value = '';
+                }
+            });
+
+            socket.on('message', data => {
+                const messageElement = document.createElement('div');
+                let translatedMessage = data.message;
+
+                // Translate the message if not in the original language
+                if (data.target_language && data.target_language !== 'original') {
+                    // Use Google Translate API or any translation library
+                    // For demonstration, let's assume there's a function translateMessage() to translate messages
+                    translatedMessage = translateMessage(data.message, data.target_language);
+                }
+
+                messageElement.innerHTML = `<strong>${data.username}:</strong> ${translatedMessage}`;
+                
+                // Check if the message belongs to the current room
+                const currentRoom = roomSelect.value;
+                if (currentRoom === data.room) {
+                    chatMessages.appendChild(messageElement);
+                }
+            });
+        });
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.1/socket.io.js"></script>
     <script src="{{ url_for('static', filename='chat.js') }}"></script>
